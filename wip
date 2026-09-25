@@ -51,7 +51,17 @@ case "$command_name" in
             exit 0
         fi
 
-        message="${*:-unnamed checkpoint}"
+        if [[ $# -gt 0 ]]; then
+            message="$*"
+        else
+            # Number = highest existing unnamed number of this branch + 1.
+            prefix="WIP::$branch::unnamed checkpoint "
+            last="$(git stash list --format='%s' | awk -v p="$prefix" '
+                i = index($0, p) { v = substr($0, i + length(p)) + 0; if (v > max) max = v }
+                END { print max + 0 }
+            ')"
+            message="unnamed checkpoint $((last + 1))"
+        fi
 
         git stash push -u -m "WIP::$branch::$message"
         ;;
@@ -62,7 +72,7 @@ case "$command_name" in
     #
     # List every local branch (and any branch that has WIPs) with its
     # WIP count. If any WIP of a branch is named, list all of them in
-    # unwip order (newest first), numbering the unnamed ones.
+    # unwip order (newest first).
     # On a terminal, the next one unwip restores is green, ">" is grey.
     # Subjects look like "On <branch>: WIP::<branch>::<message>".
     # ---------------------------------------------------------------
@@ -81,8 +91,7 @@ case "$command_name" in
                 b = $2
                 m = $0
                 sub(/^On [^:]*: WIP::[^:]*::/, "", m)
-                if (m == "unnamed checkpoint") m = m " " (++u[b])
-                else named[b] = 1
+                if (m !~ /^unnamed checkpoint( [0-9]+)?$/) named[b] = 1
                 list[b] = n[b]++ ? list[b] grey " > " reset m : green m reset
             }
             END {
