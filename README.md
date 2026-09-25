@@ -2,9 +2,9 @@
 
 This is git stash, but branch-dependent.
 
-- `wip "message"` — stash all changes for the current branch
-- `wips` — list WIPs for the current branch
+- `wip "message"` — stash all changes for the current branch. `message` is optional.
 - `unwip` — restore the newest WIP for the current branch
+- `wips` — list all branches with WIPs and their WIP count
 
 WIPs are local Git stashes and are therefore never pushed.
 

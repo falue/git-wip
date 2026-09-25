@@ -34,7 +34,7 @@ case "$command_name" in
             exit 0
         fi
 
-        message="${*:-checkpoint}"
+        message="${*:-unnamed checkpoint}"
 
         git stash push -u -m "WIP::$branch::$message"
         ;;
@@ -43,26 +43,35 @@ case "$command_name" in
     # ---------------------------------------------------------------
     # wips
     #
-    # Show only WIPs belonging to the current branch.
+    # List every branch that has WIPs, with its WIP count.
+    # If any WIP of a branch is named, list all of them, numbering
+    # the unnamed ones.
+    # Subjects look like "On <branch>: WIP::<branch>::<message>".
     # ---------------------------------------------------------------
     wips)
-        require_branch
-        marker="WIP::$branch::"
-        found=0
+        counts="$(git stash list --format='%s' | awk -F'::' '
+            /^On [^:]*: WIP::/ {
+                b = $2
+                m = $0
+                sub(/^On [^:]*: WIP::[^:]*::/, "", m)
+                n[b]++
+                if (m == "unnamed checkpoint") u[b]++
+                else named[b] = (b in named ? named[b] "; " : "") m
+            }
+            END {
+                for (b in n) {
+                    line = sprintf("%-20s %d %s", b, n[b], n[b] == 1 ? "wip" : "wips")
+                    if (b in named) {
+                        list = named[b]
+                        for (i = 1; i <= u[b]; i++) list = list "; unnamed checkpoint " i
+                        line = line ": " list
+                    }
+                    print line
+                }
+            }
+        ' | sort)"
 
-        while IFS=$'\t' read -r ref subject; do
-            if [[ "$subject" == *"$marker"* ]]; then
-                printf '%-12s %s\n' \
-                    "$ref" \
-                    "${subject#*"$marker"}"
-
-                found=1
-            fi
-        done < <(git stash list --format='%gd%x09%s')
-
-        if [[ "$found" -eq 0 ]]; then
-            echo "No WIPs for branch '$branch'."
-        fi
+        echo "${counts:-No WIPs.}"
         ;;
 
 
