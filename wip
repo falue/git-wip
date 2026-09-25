@@ -137,16 +137,18 @@ case "$command_name" in
         echo "Restoring $ref for branch '$branch'..."
 
         if git diff --quiet HEAD; then
-            git stash pop --index "$ref"
-            exit
+            git stash pop --quiet --index "$ref"
+            status=$?
+        else
+            # Git only merges a stash into staged changes, so stage them,
+            # pop, and unstage everything again.
+            git add -u
+            git stash pop --quiet "$ref"
+            status=$?
+            git reset -q
         fi
 
-        # Git only merges a stash into staged changes, so stage them,
-        # pop, and unstage everything again.
-        git add -u
-        git stash pop "$ref"
-        status=$?
-        git reset -q
+        git status --short
 
         if (( status != 0 )); then
             echo "WIP kept as $ref. After resolving conflicts: git stash drop $ref" >&2
