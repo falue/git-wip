@@ -114,8 +114,8 @@ case "$command_name" in
     #
     # Clean tree: --index restores the staged/unstaged state as it
     # was when `wip` was called.
-    # Local changes: the WIP is merged on top (conflict markers on
-    # overlap), and all changes end up unstaged.
+    # Local changes: the WIP is merged on top, and all changes end up
+    # unstaged. On conflict, markers are written and the WIP is dropped.
     # ---------------------------------------------------------------
     unwip)
         require_branch
@@ -136,15 +136,25 @@ case "$command_name" in
 
         echo "Restoring $ref for branch '$branch'..."
 
-        if git diff --quiet HEAD; then
-            git stash pop --quiet --index "$ref"
-            status=$?
-        else
-            # Git only merges a stash into staged changes, so stage them,
-            # pop, and unstage everything again.
+        # Git only merges a stash into staged changes, so with local
+        # changes stage them, pop, and unstage everything again.
+        index_opt="--index"
+        if ! git diff --quiet HEAD; then
+            index_opt=""
             git add -u
-            git stash pop --quiet "$ref"
-            status=$?
+        fi
+
+        git stash pop --quiet $index_opt "$ref"
+        status=$?
+
+        # Conflict: git applied the WIP with markers but kept it.
+        # Drop it, so the next unwip takes the one before.
+        if (( status != 0 )) && [[ -n "$(git ls-files -u)" ]]; then
+            echo "Conflict: WIP dropped anyway, resolve the markers. To get it back: git stash apply $(git rev-parse "$ref")"
+            git stash drop --quiet "$ref"
+        fi
+
+        if (( status != 0 )) || [[ -z "$index_opt" ]]; then
             git reset -q
         fi
 
