@@ -71,9 +71,9 @@ case "$command_name" in
     # ---------------------------------------------------------------
     # wips
     #
-    # List every local branch (and any branch that has WIPs) with its
-    # WIP count. If any WIP of a branch is named, list all of them in
-    # unwip order (newest first).
+    # List every local branch with its WIP count (WIPs of deleted
+    # branches are ignored). If any WIP of a branch is named, list all
+    # of them in unwip order (newest first).
     # On a terminal, the next one unwip restores is green, ">" is grey.
     # Subjects look like "On <branch>: WIP::<branch>::<message>".
     #
@@ -117,6 +117,7 @@ case "$command_name" in
             $1 == "branch" { n[$2] += 0; next }
             /^On [^:]*: WIP::/ {
                 b = $2
+                if (!(b in n)) next
                 m = $0
                 sub(/^On [^:]*: WIP::[^:]*::/, "", m)
                 if (m !~ /^unnamed checkpoint( [0-9]+)?$/) named[b] = 1
