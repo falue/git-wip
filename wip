@@ -74,7 +74,8 @@ case "$command_name" in
     # List every local branch with its WIP count (WIPs of deleted
     # branches are ignored). If any WIP of a branch is named, list all
     # of them in unwip order (newest first).
-    # On a terminal, the next one unwip restores is green, ">" is grey.
+    # Like git branch, the current branch has a "*" and is green.
+    # On a terminal, the next one unwip restores is light blue, ">" is grey.
     # Subjects look like "On <branch>: WIP::<branch>::<message>".
     #
     # wips -d / --delete drops all WIPs of the current branch.
@@ -105,32 +106,36 @@ case "$command_name" in
             exit 0
         fi
 
-        green="" grey="" reset=""
+        green="" blue="" grey="" reset=""
         if [[ -t 1 ]]; then
-            green=$'\e[32m' grey=$'\e[90m' reset=$'\e[0m'
+            green=$'\e[32m' blue=$'\e[94m' grey=$'\e[90m' reset=$'\e[0m'
         fi
 
         counts="$({
             git for-each-ref --format='branch::%(refname:short)' refs/heads
             git stash list --format='%s'
-        } | awk -F'::' -v green="$green" -v grey="$grey" -v reset="$reset" '
-            $1 == "branch" { n[$2] += 0; next }
+        } | awk -F'::' -v green="$green" -v blue="$blue" -v grey="$grey" -v reset="$reset" \
+                -v current="$(current_branch)" '
+            $1 == "branch" { n[$2] += 0; order[++k] = $2; next }
             /^On [^:]*: WIP::/ {
                 b = $2
                 if (!(b in n)) next
                 m = $0
                 sub(/^On [^:]*: WIP::[^:]*::/, "", m)
                 if (m !~ /^unnamed checkpoint( [0-9]+)?$/) named[b] = 1
-                list[b] = n[b]++ ? list[b] grey " > " reset m : green m reset
+                list[b] = n[b]++ ? list[b] grey " > " reset m : blue m reset
             }
             END {
-                for (b in n) {
-                    line = sprintf("%-20s %d %s", b, n[b], n[b] == 1 ? "wip" : "wips")
+                for (i = 1; i <= k; i++) {
+                    b = order[i]
+                    name = sprintf("%-20s", b)
+                    line = b == current ? "* " green name reset : "  " name
+                    line = line sprintf(" %d %s", n[b], n[b] == 1 ? "wip" : "wips")
                     if (b in named) line = line ": " list[b]
                     print line
                 }
             }
-        ' | sort)"
+        ')"
 
         echo "${counts:-No WIPs.}"
         ;;
