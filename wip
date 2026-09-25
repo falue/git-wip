@@ -25,6 +25,7 @@ Usage:
   wip [message]   stash all changes (incl. untracked) for the current branch
   unwip           restore the newest WIP of the current branch
   wips            list all branches with their WIP count and names
+  wips -d         delete all WIPs of the current branch (also --delete)
   -h, --help      show this help
 EOF
 }
@@ -75,8 +76,35 @@ case "$command_name" in
     # unwip order (newest first).
     # On a terminal, the next one unwip restores is green, ">" is grey.
     # Subjects look like "On <branch>: WIP::<branch>::<message>".
+    #
+    # wips -d / --delete drops all WIPs of the current branch.
     # ---------------------------------------------------------------
     wips)
+        if [[ "${1-}" == -d || "${1-}" == --delete ]]; then
+            require_branch
+            marker="WIP::$branch::"
+            n=0
+
+            while IFS=$'\t' read -r stash_ref hash subject; do
+                if [[ "$subject" == *"$marker"* ]]; then
+                    refs[n]="$stash_ref" hashes[n]="$hash" names[n]="${subject#*"$marker"}"
+                    n=$((n + 1))
+                fi
+            done < <(git stash list --format='%gd%x09%H%x09%s')
+
+            if (( n == 0 )); then
+                echo "No WIPs for branch '$branch'."
+                exit 0
+            fi
+
+            # Oldest first, so the remaining stash@{N} numbers don't shift.
+            for (( i = n - 1; i >= 0; i-- )); do
+                git stash drop --quiet "${refs[i]}"
+                echo "Deleted ${names[i]} (get it back: git stash apply ${hashes[i]})"
+            done
+            exit 0
+        fi
+
         green="" grey="" reset=""
         if [[ -t 1 ]]; then
             green=$'\e[32m' grey=$'\e[90m' reset=$'\e[0m'
