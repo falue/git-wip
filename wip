@@ -2,6 +2,8 @@
 
 set -u
 
+# conflict 2
+# conflict 1
 command_name="$(basename "$0")"
 
 # Get the currently checked-out branch.
@@ -149,10 +151,6 @@ case "$command_name" in
         fi
 
         git status --short
-
-        if (( status != 0 )); then
-            echo "WIP kept as $ref. After resolving conflicts: git stash drop $ref" >&2
-        fi
         exit "$status"
         ;;
 
