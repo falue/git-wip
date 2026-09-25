@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+
+set -u
+
+command_name="$(basename "$0")"
+
+# Get the currently checked-out branch.
+current_branch() {
+    git symbolic-ref --quiet --short HEAD 2>/dev/null
+}
+
+require_branch() {
+    local branch
+
+    branch="$(current_branch)" || {
+        echo "Error: not on a Git branch." >&2
+        exit 1
+    }
+
+    printf '%s\n' "$branch"
+}
+
+case "$command_name" in
+
+    # ---------------------------------------------------------------
+    # wip "description"
+    #
+    # Stash everything, including untracked files.
+    # The branch name is stored in our own marker so we can reliably
+    # associate this WIP with the branch later.
+    # ---------------------------------------------------------------
+    wip)
+        branch="$(require_branch)"
+
+        if [[ -z "$(git status --porcelain)" ]]; then
+            echo "Nothing to WIP."
+            exit 0
+        fi
+
+        message="${*:-checkpoint}"
+
+        git stash push -u -m "WIP::$branch::$message"
+        ;;
+
+
+    # ---------------------------------------------------------------
+    # wips
+    #
+    # Show only WIPs belonging to the current branch.
+    # ---------------------------------------------------------------
+    wips)
+        branch="$(require_branch)"
+        marker="WIP::$branch::"
+        found=0
+
+        while IFS=$'\t' read -r ref subject; do
+            if [[ "$subject" == *"$marker"* ]]; then
+                printf '%-12s %s\n' \
+                    "$ref" \
+                    "${subject#*"$marker"}"
+
+                found=1
+            fi
+        done < <(git stash list --format='%gd%x09%s')
+
+        if [[ "$found" -eq 0 ]]; then
+            echo "No WIPs for branch '$branch'."
+        fi
+        ;;
+
+
+    # ---------------------------------------------------------------
+    # unwip
+    #
+    # Restore the newest WIP belonging to the current branch.
+    #
+    # --index restores the staged/unstaged state as closely as
+    # possible to how it was when `wip` was called.
+    # ---------------------------------------------------------------
+    unwip)
+        branch="$(require_branch)"
+        marker="WIP::$branch::"
+        ref=""
+
+        while IFS=$'\t' read -r stash_ref subject; do
+            if [[ "$subject" == *"$marker"* ]]; then
+                ref="$stash_ref"
+                break
+            fi
+        done < <(git stash list --format='%gd%x09%s')
+
+        if [[ -z "$ref" ]]; then
+            echo "No WIP found for branch '$branch'."
+            exit 1
+        fi
+
+        echo "Restoring $ref for branch '$branch'..."
+        git stash pop --index "$ref"
+        ;;
+
+
+    *)
+        echo "Error: call this script as wip, wips, or unwip." >&2
+        exit 1
+        ;;
+esac
