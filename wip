@@ -63,19 +63,19 @@ case "$command_name" in
     # List every local branch (and any branch that has WIPs) with its
     # WIP count. If any WIP of a branch is named, list all of them in
     # unwip order (newest first), numbering the unnamed ones.
-    # The next one unwip restores is green on a terminal.
+    # On a terminal, the next one unwip restores is green, ">" is grey.
     # Subjects look like "On <branch>: WIP::<branch>::<message>".
     # ---------------------------------------------------------------
     wips)
-        green="" reset=""
+        green="" grey="" reset=""
         if [[ -t 1 ]]; then
-            green=$'\e[32m' reset=$'\e[0m'
+            green=$'\e[32m' grey=$'\e[90m' reset=$'\e[0m'
         fi
 
         counts="$({
             git for-each-ref --format='branch::%(refname:short)' refs/heads
             git stash list --format='%s'
-        } | awk -F'::' -v green="$green" -v reset="$reset" '
+        } | awk -F'::' -v green="$green" -v grey="$grey" -v reset="$reset" '
             $1 == "branch" { n[$2] += 0; next }
             /^On [^:]*: WIP::/ {
                 b = $2
@@ -83,7 +83,7 @@ case "$command_name" in
                 sub(/^On [^:]*: WIP::[^:]*::/, "", m)
                 if (m == "unnamed checkpoint") m = m " " (++u[b])
                 else named[b] = 1
-                list[b] = n[b]++ ? list[b] "; " m : green m reset
+                list[b] = n[b]++ ? list[b] grey " > " reset m : green m reset
             }
             END {
                 for (b in n) {
