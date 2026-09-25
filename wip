@@ -17,6 +17,23 @@ require_branch() {
     }
 }
 
+usage() {
+    cat <<'EOF'
+git stash, but per branch.
+
+Usage:
+  wip [message]   stash all changes (incl. untracked) for the current branch
+  unwip           restore the newest WIP of the current branch
+  wips            list all branches with their WIP count and names
+  -h, --help      show this help
+EOF
+}
+
+if [[ "${1-}" == -h || "${1-}" == --help ]]; then
+    usage
+    exit 0
+fi
+
 case "$command_name" in
 
     # ---------------------------------------------------------------
@@ -111,6 +128,7 @@ case "$command_name" in
 
     *)
         echo "Error: call this script as wip, wips, or unwip." >&2
+        usage >&2
         exit 1
         ;;
 esac
