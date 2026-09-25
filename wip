@@ -9,15 +9,12 @@ current_branch() {
     git symbolic-ref --quiet --short HEAD 2>/dev/null
 }
 
+# Set $branch or exit. Not called via $(...), so exit ends the script.
 require_branch() {
-    local branch
-
     branch="$(current_branch)" || {
         echo "Error: not on a Git branch." >&2
         exit 1
     }
-
-    printf '%s\n' "$branch"
 }
 
 case "$command_name" in
@@ -30,7 +27,7 @@ case "$command_name" in
     # associate this WIP with the branch later.
     # ---------------------------------------------------------------
     wip)
-        branch="$(require_branch)"
+        require_branch
 
         if [[ -z "$(git status --porcelain)" ]]; then
             echo "Nothing to WIP."
@@ -49,7 +46,7 @@ case "$command_name" in
     # Show only WIPs belonging to the current branch.
     # ---------------------------------------------------------------
     wips)
-        branch="$(require_branch)"
+        require_branch
         marker="WIP::$branch::"
         found=0
 
@@ -78,7 +75,7 @@ case "$command_name" in
     # possible to how it was when `wip` was called.
     # ---------------------------------------------------------------
     unwip)
-        branch="$(require_branch)"
+        require_branch
         marker="WIP::$branch::"
         ref=""
 

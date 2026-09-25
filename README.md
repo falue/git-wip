@@ -11,9 +11,12 @@ WIPs are local Git stashes and are therefore never pushed.
 
 # Installing
 
+Run from the repo directory:
+
 ```
 mkdir -p ~/.local/bin
-chmod +x ~/.local/bin/wip
+chmod +x wip
+ln -sf "$PWD/wip" ~/.local/bin/wip
 
 ln -sf ~/.local/bin/wip ~/.local/bin/wips
 ln -sf ~/.local/bin/wip ~/.local/bin/unwip
