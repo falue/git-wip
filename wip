@@ -112,8 +112,10 @@ case "$command_name" in
     #
     # Restore the newest WIP belonging to the current branch.
     #
-    # --index restores the staged/unstaged state as closely as
-    # possible to how it was when `wip` was called.
+    # Clean tree: --index restores the staged/unstaged state as it
+    # was when `wip` was called.
+    # Local changes: the WIP is merged on top (conflict markers on
+    # overlap), and all changes end up unstaged.
     # ---------------------------------------------------------------
     unwip)
         require_branch
@@ -133,7 +135,23 @@ case "$command_name" in
         fi
 
         echo "Restoring $ref for branch '$branch'..."
-        git stash pop --index "$ref"
+
+        if git diff --quiet HEAD; then
+            git stash pop --index "$ref"
+            exit
+        fi
+
+        # Git only merges a stash into staged changes, so stage them,
+        # pop, and unstage everything again.
+        git add -u
+        git stash pop "$ref"
+        status=$?
+        git reset -q
+
+        if (( status != 0 )); then
+            echo "WIP kept as $ref. After resolving conflicts: git stash drop $ref" >&2
+        fi
+        exit "$status"
         ;;
 
 
