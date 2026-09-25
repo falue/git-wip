@@ -2,8 +2,6 @@
 
 set -u
 
-# conflict 2
-# conflict 1
 command_name="$(basename "$0")"
 
 # Get the currently checked-out branch.
